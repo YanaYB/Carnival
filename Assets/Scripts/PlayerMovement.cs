@@ -6,6 +6,7 @@ using UnityEngine.InputSystem;
 public class PlayerMovement : MonoBehaviour
 {
     public Rigidbody2D rb;
+    Animator animator;
     [Header("Movement")]
     public float moveSpeed = 5f;
     public float sprintMultiplier = 1.5f; // Множитель ускорения
@@ -28,20 +29,29 @@ public class PlayerMovement : MonoBehaviour
     public float maxFallSpeed = 18f;
     public float fallGravityMult = 2f;
 
-    private float lastGroundedTime;
-    public float coyoteTime = 0.1f;
 
-    private bool isSprinting = false; // Флаг ускорения
+    private bool isSprinting = false; 
 
     void Start()
     {
-        currentMoveSpeed = moveSpeed; // Инициализируем текущую скорость
+        currentMoveSpeed = moveSpeed;
+        animator = GetComponent<Animator>();
     }
 
     void FixedUpdate()
     {
         // Движение и физика в FixedUpdate
         rb.velocity = new Vector2(horizontalMovement * currentMoveSpeed, rb.velocity.y);
+
+        // Поворот спрайта в зависимости от направления движения
+        if (horizontalMovement > 0) // Движение вправо
+        {
+            transform.localScale = new Vector3(1, 1, 1); // Обычный масштаб
+        }
+        else if (horizontalMovement < 0) // Движение влево
+        {
+            transform.localScale = new Vector3(-1, 1, 1); // Отразить спрайт по оси X
+        }
 
         // Falling gravity
         if (rb.velocity.y < 0)
@@ -55,6 +65,17 @@ public class PlayerMovement : MonoBehaviour
         }
 
         GroundCheck();
+
+        // Обновляем параметры аниматора
+        animator.SetFloat("yVelocity", rb.velocity.y);
+        animator.SetFloat("magnitude", Mathf.Abs(horizontalMovement));
+        animator.SetBool("isGrounded", isGrounded);
+
+        // Сбрасываем триггер jump, если персонаж приземлился
+        if (isGrounded)
+        {
+            animator.ResetTrigger("jump");
+        }
     }
 
     public void Move(InputAction.CallbackContext context)
@@ -69,22 +90,19 @@ public class PlayerMovement : MonoBehaviour
             if (context.performed)
             {
                 // Проверяем, можем ли мы прыгнуть 
-                if (isGrounded || Time.time - lastGroundedTime <= coyoteTime)
+                if (isGrounded)
                 {
                     rb.velocity = new Vector2(rb.velocity.x, jumpPower);
                     jumpsRemaining--;
-
-                    // Сбрасываем койот-тайм после прыжка
-                    if (!isGrounded)
-                    {
-                        lastGroundedTime = 0;
-                    }
+                    animator.SetTrigger("jump");
                 }
             }
             else if (context.canceled && rb.velocity.y > 0)
             {
                 // Уменьшаем высоту прыжка, если кнопка прыжка отпущена раньше времени
                 rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.5f);
+                jumpsRemaining--;
+                animator.SetTrigger("jump");
             }
         }
     }
@@ -95,11 +113,13 @@ public class PlayerMovement : MonoBehaviour
         {
             isSprinting = true;
             currentMoveSpeed = moveSpeed * sprintMultiplier; // Увеличиваем скорость
+            animator.SetBool("isSprinting", true); // Включаем анимацию спринта
         }
         else if (context.canceled)
         {
             isSprinting = false;
             currentMoveSpeed = moveSpeed; // Возвращаем обычную скорость
+            animator.SetBool("isSprinting", false); // Выключаем анимацию спринта
         }
     }
 
@@ -110,7 +130,6 @@ public class PlayerMovement : MonoBehaviour
 
         if (isGrounded)
         {
-            lastGroundedTime = Time.time;
             if (!wasGrounded)
             {
                 jumpsRemaining = maxJumps; // Сбрасываем прыжки при приземлении

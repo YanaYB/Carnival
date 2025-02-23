@@ -4928,6 +4928,7 @@ GameObject:
   - component: {fileID: 747211824}
   - component: {fileID: 747211823}
   - component: {fileID: 747211825}
+  - component: {fileID: 747211826}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -5055,7 +5056,6 @@ MonoBehaviour:
   baseGravity: 2
   maxFallSpeed: 18
   fallGravityMult: 2
-  coyoteTime: 0.1
 --- !u!114 &747211824
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5219,6 +5219,27 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 0.46364093, y: 1.0813689}
   m_EdgeRadius: 0
+--- !u!95 &747211826
+Animator:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 747211818}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: bdb252959a0c3ff43811c5a92dfc04d7, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &782678549
 GameObject:
   m_ObjectHideFlags: 0
