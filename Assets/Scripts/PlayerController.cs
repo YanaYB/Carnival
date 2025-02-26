@@ -2,8 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
-public class PlayerMovement : MonoBehaviour
+public class PlayerController : MonoBehaviour
 {
     public Rigidbody2D rb;
     Animator animator;
@@ -30,12 +31,22 @@ public class PlayerMovement : MonoBehaviour
     public float fallGravityMult = 2f;
 
 
+    [Header("Death")]
+    public float deathDelay = 10f; // Задержка перед переходом на сцену Game Over
+    private bool isDead = false; // Флаг, указывающий, что игрок мертв
+    public int gameOverSceneIndex = 4; // Индекс сцены Game Over
+    private float deathTimer;
+
     private bool isSprinting = false; 
 
     void Start()
     {
         currentMoveSpeed = moveSpeed;
         animator = GetComponent<Animator>();
+
+        GameObject startObject = GameObject.FindGameObjectWithTag("Start");
+        transform.position = startObject.transform.position - new Vector3(-2, 1, 0);
+
     }
 
     void FixedUpdate()
@@ -77,6 +88,7 @@ public class PlayerMovement : MonoBehaviour
             animator.ResetTrigger("jump");
         }
     }
+
 
     public void Move(InputAction.CallbackContext context)
     {
@@ -141,5 +153,37 @@ public class PlayerMovement : MonoBehaviour
     {
         Gizmos.color = Color.white;
         Gizmos.DrawWireCube(groundCheckPos.position, groundCheckSize);
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.CompareTag("Finish"))
+        {
+            string currentSceneName = SceneManager.GetActiveScene().name;
+
+            if (currentSceneName == "Level1")
+            {
+                SceneManager.LoadScene(2);
+            }
+            else if (currentSceneName == "Level2")
+            {
+                SceneManager.LoadScene(3);
+            }
+        }else if (collision.CompareTag("Enemy"))
+        {
+            Die();
+        }
+    }
+
+    private void Die()
+    {
+        if (isDead) return; // Если игрок уже мертв, выходим
+
+        isDead = true; // Устанавливаем флаг смерти
+        animator.SetBool("isDead", true); // Запускаем анимацию смерти
+        rb.velocity = Vector2.zero;
+        rb.gravityScale = 0;
+        rb.isKinematic = true;
+        //deathTimer = deathDelay;
     }
 }
