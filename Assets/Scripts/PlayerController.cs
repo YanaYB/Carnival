@@ -1,22 +1,21 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
+using UnityEngine;
+using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
     public Rigidbody2D rb;
-    Animator animator;
+    private Animator animator;
+
     [Header("Movement")]
     public float moveSpeed = 5f;
-    public float sprintMultiplier = 1.5f; // Множитель ускорения
-    private float currentMoveSpeed; // Текущая скорость движения
-    float horizontalMovement;
+    public float sprintMultiplier = 1.5f;
+    private float currentMoveSpeed;
+    private float horizontalMovement;
 
     [Header("Jumping")]
     public float jumpPower = 10f;
-    public int maxJumps = 2;
+    public int maxJumps = 1;
     private int jumpsRemaining;
 
     [Header("GroundCheck")]
@@ -30,14 +29,12 @@ public class PlayerController : MonoBehaviour
     public float maxFallSpeed = 18f;
     public float fallGravityMult = 2f;
 
+    private bool isSprinting = false;
 
-    [Header("Death")]
-    public float deathDelay = 10f; // Задержка перед переходом на сцену Game Over
-    private bool isDead = false; // Флаг, указывающий, что игрок мертв
-    public int gameOverSceneIndex = 4; // Индекс сцены Game Over
-    private float deathTimer;
-
-    private bool isSprinting = false; 
+    [Header("Attack")]
+    public GameObject fireballPrefab; // Префаб огонька
+    public float fireballSpeed = 10f; // Скорость огонька
+    public Vector2 fireballOffset = new Vector2(0.5f, 0f); // Смещение относительно игрока
 
     void Start()
     {
@@ -46,29 +43,25 @@ public class PlayerController : MonoBehaviour
 
         GameObject startObject = GameObject.FindGameObjectWithTag("Start");
         transform.position = startObject.transform.position - new Vector3(-2, 1, 0);
-
     }
 
     void FixedUpdate()
     {
-        // Движение и физика в FixedUpdate
         rb.velocity = new Vector2(horizontalMovement * currentMoveSpeed, rb.velocity.y);
 
-        // Поворот спрайта в зависимости от направления движения
-        if (horizontalMovement > 0) // Движение вправо
+        if (horizontalMovement > 0)
         {
-            transform.localScale = new Vector3(1, 1, 1); // Обычный масштаб
+            transform.localScale = new Vector3(1, 1, 1);
         }
-        else if (horizontalMovement < 0) // Движение влево
+        else if (horizontalMovement < 0)
         {
-            transform.localScale = new Vector3(-1, 1, 1); // Отразить спрайт по оси X
+            transform.localScale = new Vector3(-1, 1, 1);
         }
 
-        // Falling gravity
         if (rb.velocity.y < 0)
         {
-            rb.gravityScale = baseGravity * fallGravityMult; // Fall faster and faster
-            rb.velocity = new Vector2(rb.velocity.x, Mathf.Max(rb.velocity.y, -maxFallSpeed)); // Max fall speed
+            rb.gravityScale = baseGravity * fallGravityMult;
+            rb.velocity = new Vector2(rb.velocity.x, Mathf.Max(rb.velocity.y, -maxFallSpeed));
         }
         else
         {
@@ -77,22 +70,20 @@ public class PlayerController : MonoBehaviour
 
         GroundCheck();
 
-        // Обновляем параметры аниматора
         animator.SetFloat("yVelocity", rb.velocity.y);
         animator.SetFloat("magnitude", Mathf.Abs(horizontalMovement));
         animator.SetBool("isGrounded", isGrounded);
 
-        // Сбрасываем триггер jump, если персонаж приземлился
         if (isGrounded)
         {
             animator.ResetTrigger("jump");
         }
     }
 
-
     public void Move(InputAction.CallbackContext context)
     {
         horizontalMovement = context.ReadValue<Vector2>().x;
+        
     }
 
     public void Jump(InputAction.CallbackContext context)
@@ -107,6 +98,7 @@ public class PlayerController : MonoBehaviour
                     rb.velocity = new Vector2(rb.velocity.x, jumpPower);
                     jumpsRemaining--;
                     animator.SetTrigger("jump");
+                    SoundEffectManager.Instance.PlayJumpSound();
                 }
             }
             else if (context.canceled && rb.velocity.y > 0)
@@ -124,14 +116,45 @@ public class PlayerController : MonoBehaviour
         if (context.performed)
         {
             isSprinting = true;
-            currentMoveSpeed = moveSpeed * sprintMultiplier; // Увеличиваем скорость
-            animator.SetBool("isSprinting", true); // Включаем анимацию спринта
+            currentMoveSpeed = moveSpeed * sprintMultiplier;
+            animator.SetBool("isSprinting", true);
         }
         else if (context.canceled)
         {
             isSprinting = false;
-            currentMoveSpeed = moveSpeed; // Возвращаем обычную скорость
-            animator.SetBool("isSprinting", false); // Выключаем анимацию спринта
+            currentMoveSpeed = moveSpeed;
+            animator.SetBool("isSprinting", false);
+        }
+    }
+
+    public void Attack(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            animator.SetBool("isAtack", true);
+            StartCoroutine(ShootFireball()); // Выпускаем огонь с задержкой
+        }
+        else if (context.canceled)
+        {
+            animator.SetBool("isAtack", false);
+        }
+    }
+
+    private IEnumerator ShootFireball()
+    {
+        yield return new WaitForSeconds(0.2f); // Подождем, чтобы синхронизировать с анимацией
+
+        float direction = Mathf.Sign(transform.localScale.x);
+        Vector3 firePosition = transform.position + new Vector3(fireballOffset.x * direction, fireballOffset.y, 0);
+
+        GameObject fireball = Instantiate(fireballPrefab, firePosition, Quaternion.identity);
+        Fireball fireballScript = fireball.GetComponent<Fireball>();
+
+        fireballScript.speed = fireballSpeed * direction;
+
+        if (direction < 0)
+        {
+            fireball.transform.localScale = new Vector3(-1, 1, 1);
         }
     }
 
@@ -140,50 +163,9 @@ public class PlayerController : MonoBehaviour
         bool wasGrounded = isGrounded;
         isGrounded = Physics2D.OverlapBox(groundCheckPos.position, groundCheckSize, 0, groundLayer);
 
-        if (isGrounded)
+        if (isGrounded && !wasGrounded)
         {
-            if (!wasGrounded)
-            {
-                jumpsRemaining = maxJumps; // Сбрасываем прыжки при приземлении
-            }
+            jumpsRemaining = maxJumps;
         }
-    }
-
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.white;
-        Gizmos.DrawWireCube(groundCheckPos.position, groundCheckSize);
-    }
-
-    private void OnTriggerEnter2D(Collider2D collision)
-    {
-        if (collision.CompareTag("Finish"))
-        {
-            string currentSceneName = SceneManager.GetActiveScene().name;
-
-            if (currentSceneName == "Level1")
-            {
-                SceneManager.LoadScene(2);
-            }
-            else if (currentSceneName == "Level2")
-            {
-                SceneManager.LoadScene(3);
-            }
-        }else if (collision.CompareTag("Enemy"))
-        {
-            Die();
-        }
-    }
-
-    private void Die()
-    {
-        if (isDead) return; // Если игрок уже мертв, выходим
-
-        isDead = true; // Устанавливаем флаг смерти
-        animator.SetBool("isDead", true); // Запускаем анимацию смерти
-        rb.velocity = Vector2.zero;
-        rb.gravityScale = 0;
-        rb.isKinematic = true;
-        //deathTimer = deathDelay;
     }
 }
