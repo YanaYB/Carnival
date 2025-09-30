@@ -8,6 +8,8 @@ TagManager:
   - Enemy
   - Death
   - Wall
+  - Resource
+  - Exit
   layers:
   - Default
   - TransparentFX

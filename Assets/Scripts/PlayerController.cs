@@ -1,11 +1,12 @@
 using UnityEngine.InputSystem;
 using UnityEngine;
 using System.Collections;
+using UnityEngine.SceneManagement;
+using TMPro;
 
 public class PlayerController : MonoBehaviour
 {
     public Rigidbody2D rb;
-    private Animator animator;
 
     [Header("Movement")]
     public float moveSpeed = 5f;
@@ -29,20 +30,26 @@ public class PlayerController : MonoBehaviour
     public float maxFallSpeed = 18f;
     public float fallGravityMult = 2f;
 
-    private bool isSprinting = false;
+    [Header("Resources")]
+    public int totalResourcesRequired = 5; // Сколько всего нужно собрать ресурсов
+    private int collectedResources = 0; // Сколько уже собрано
+    public GameObject levelExit; // Объект выхода на след. уровень
 
-    [Header("Attack")]
-    public GameObject fireballPrefab; // Префаб огонька
-    public float fireballSpeed = 10f; // Скорость огонька
-    public Vector2 fireballOffset = new Vector2(0.5f, 0f); // Смещение относительно игрока
+    [Header("Resource UI")]
+    public TMP_Text resourceInfoText; // Просто один TextMeshPro текст на сцене
+    public float messageShowTime = 10f; // Время показа сообщения
+
 
     void Start()
     {
         currentMoveSpeed = moveSpeed;
-        animator = GetComponent<Animator>();
+        rb = GetComponent<Rigidbody2D>();
 
         GameObject startObject = GameObject.FindGameObjectWithTag("Start");
-        transform.position = startObject.transform.position - new Vector3(-2, 1, 0);
+        if (startObject != null)
+            transform.position = startObject.transform.position - new Vector3(-2, 1, 0);
+        if (resourceInfoText != null)
+            resourceInfoText.text = "";
     }
 
     void FixedUpdate()
@@ -51,11 +58,11 @@ public class PlayerController : MonoBehaviour
 
         if (horizontalMovement > 0)
         {
-            transform.localScale = new Vector3(1, 1, 1);
+            transform.localScale = new Vector3(3, 3, 5);
         }
         else if (horizontalMovement < 0)
         {
-            transform.localScale = new Vector3(-1, 1, 1);
+            transform.localScale = new Vector3(-3, 3, 5);
         }
 
         if (rb.velocity.y < 0)
@@ -69,21 +76,77 @@ public class PlayerController : MonoBehaviour
         }
 
         GroundCheck();
+    }
 
-        animator.SetFloat("yVelocity", rb.velocity.y);
-        animator.SetFloat("magnitude", Mathf.Abs(horizontalMovement));
-        animator.SetBool("isGrounded", isGrounded);
+    // Метод для сбора ресурсов
+    public void CollectResource(GameObject resourceObject)
+    {
+        collectedResources++;
 
-        if (isGrounded)
+        // Получаем имя ресурса из тега или компонента
+        string resourceName = resourceObject.name.Replace("(Clone)", "");
+
+        // Обновляем текст
+        if (resourceInfoText != null)
         {
-            animator.ResetTrigger("jump");
+            resourceInfoText.text = $"{resourceName}!";
+
+            // Прячем текст через заданное время
+            CancelInvoke(nameof(HideResourceText));
+            Invoke(nameof(HideResourceText), messageShowTime);
+        }
+
+        Destroy(resourceObject);
+
+        if (collectedResources >= totalResourcesRequired && levelExit != null)
+        {
+            levelExit.SetActive(true);
         }
     }
 
+    private void HideResourceText()
+    {
+        if (resourceInfoText != null)
+            resourceInfoText.text = "";
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.CompareTag("Finish"))
+        {
+            if (collectedResources >= totalResourcesRequired)
+            {
+                string current = SceneManager.GetActiveScene().name;
+
+                switch (current)
+                {
+                    case "Level2":
+                        SceneManager.LoadScene("Level1");
+                        break;
+                    case "Level1":
+                        SceneManager.LoadScene("Exit");
+                        break;
+                    default:
+                        SceneManager.LoadScene("Level2");
+                        break;
+                }
+            }
+            else
+            {
+                
+                Invoke(nameof(HideResourceText), messageShowTime);
+            }
+        }
+        else if (other.CompareTag("Resource"))
+        {
+            CollectResource(other.gameObject);
+        }
+    }
+
+    // Остальные методы остаются без изменений
     public void Move(InputAction.CallbackContext context)
     {
         horizontalMovement = context.ReadValue<Vector2>().x;
-        
     }
 
     public void Jump(InputAction.CallbackContext context)
@@ -92,21 +155,18 @@ public class PlayerController : MonoBehaviour
         {
             if (context.performed)
             {
-                // Проверяем, можем ли мы прыгнуть 
                 if (isGrounded)
                 {
                     rb.velocity = new Vector2(rb.velocity.x, jumpPower);
                     jumpsRemaining--;
-                    animator.SetTrigger("jump");
-                    SoundEffectManager.Instance.PlayJumpSound();
+                    if (SoundEffectManager.Instance != null)
+                        SoundEffectManager.Instance.PlayJumpSound();
                 }
             }
             else if (context.canceled && rb.velocity.y > 0)
             {
-                // Уменьшаем высоту прыжка, если кнопка прыжка отпущена раньше времени
                 rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.5f);
                 jumpsRemaining--;
-                animator.SetTrigger("jump");
             }
         }
     }
@@ -115,46 +175,13 @@ public class PlayerController : MonoBehaviour
     {
         if (context.performed)
         {
-            isSprinting = true;
+           
             currentMoveSpeed = moveSpeed * sprintMultiplier;
-            animator.SetBool("isSprinting", true);
         }
         else if (context.canceled)
         {
-            isSprinting = false;
+            
             currentMoveSpeed = moveSpeed;
-            animator.SetBool("isSprinting", false);
-        }
-    }
-
-    public void Attack(InputAction.CallbackContext context)
-    {
-        if (context.performed)
-        {
-            animator.SetBool("isAtack", true);
-            StartCoroutine(ShootFireball()); // Выпускаем огонь с задержкой
-        }
-        else if (context.canceled)
-        {
-            animator.SetBool("isAtack", false);
-        }
-    }
-
-    private IEnumerator ShootFireball()
-    {
-        yield return new WaitForSeconds(0.2f); // Подождем, чтобы синхронизировать с анимацией
-
-        float direction = Mathf.Sign(transform.localScale.x);
-        Vector3 firePosition = transform.position + new Vector3(fireballOffset.x * direction, fireballOffset.y, 0);
-
-        GameObject fireball = Instantiate(fireballPrefab, firePosition, Quaternion.identity);
-        Fireball fireballScript = fireball.GetComponent<Fireball>();
-
-        fireballScript.speed = fireballSpeed * direction;
-
-        if (direction < 0)
-        {
-            fireball.transform.localScale = new Vector3(-1, 1, 1);
         }
     }
 
