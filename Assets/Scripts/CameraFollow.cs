@@ -2,19 +2,23 @@ using UnityEngine;
 
 public class CameraFollow : MonoBehaviour
 {
-    public Transform player;  
-    public Vector3 offset; 
+    public Transform player;
+    public Vector3 offset;
+    private float fixedY; // фиксированная высота камеры
 
     void Start()
     {
         offset = transform.position - player.position;
+        //fixedY = transform.position.y; // запоминаем начальную высоту
     }
 
-    void Update()
+    void LateUpdate()
     {
         if (player != null)
         {
-            transform.position = player.position + offset;
+            Vector3 targetPosition = player.position + offset;
+            //targetPosition.y = fixedY; // оставляем Y неизменным
+            transform.position = targetPosition;
         }
     }
 }

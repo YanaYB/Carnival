@@ -30,26 +30,12 @@ public class PlayerController : MonoBehaviour
     public float maxFallSpeed = 18f;
     public float fallGravityMult = 2f;
 
-    [Header("Resources")]
-    public int totalResourcesRequired = 5; // Сколько всего нужно собрать ресурсов
-    private int collectedResources = 0; // Сколько уже собрано
-    public GameObject levelExit; // Объект выхода на след. уровень
-
-    [Header("Resource UI")]
-    public TMP_Text resourceInfoText; // Просто один TextMeshPro текст на сцене
-    public float messageShowTime = 10f; // Время показа сообщения
-
 
     void Start()
     {
         currentMoveSpeed = moveSpeed;
         rb = GetComponent<Rigidbody2D>();
 
-        GameObject startObject = GameObject.FindGameObjectWithTag("Start");
-        if (startObject != null)
-            transform.position = startObject.transform.position - new Vector3(-2, 1, 0);
-        if (resourceInfoText != null)
-            resourceInfoText.text = "";
     }
 
     void FixedUpdate()
@@ -58,11 +44,11 @@ public class PlayerController : MonoBehaviour
 
         if (horizontalMovement > 0)
         {
-            transform.localScale = new Vector3(3, 3, 5);
+            transform.localScale = new Vector3(-1, 1, 1);
         }
         else if (horizontalMovement < 0)
         {
-            transform.localScale = new Vector3(-3, 3, 5);
+            transform.localScale = new Vector3(1, 1, 1);
         }
 
         if (rb.velocity.y < 0)
@@ -78,72 +64,6 @@ public class PlayerController : MonoBehaviour
         GroundCheck();
     }
 
-    // Метод для сбора ресурсов
-    public void CollectResource(GameObject resourceObject)
-    {
-        collectedResources++;
-
-        // Получаем имя ресурса из тега или компонента
-        string resourceName = resourceObject.name.Replace("(Clone)", "");
-
-        // Обновляем текст
-        if (resourceInfoText != null)
-        {
-            resourceInfoText.text = $"{resourceName}!";
-
-            // Прячем текст через заданное время
-            CancelInvoke(nameof(HideResourceText));
-            Invoke(nameof(HideResourceText), messageShowTime);
-        }
-
-        Destroy(resourceObject);
-
-        if (collectedResources >= totalResourcesRequired && levelExit != null)
-        {
-            levelExit.SetActive(true);
-        }
-    }
-
-    private void HideResourceText()
-    {
-        if (resourceInfoText != null)
-            resourceInfoText.text = "";
-    }
-
-    private void OnTriggerEnter2D(Collider2D other)
-    {
-        if (other.CompareTag("Finish"))
-        {
-            if (collectedResources >= totalResourcesRequired)
-            {
-                string current = SceneManager.GetActiveScene().name;
-
-                switch (current)
-                {
-                    case "Level2":
-                        SceneManager.LoadScene("Level1");
-                        break;
-                    case "Level1":
-                        SceneManager.LoadScene("Exit");
-                        break;
-                    default:
-                        SceneManager.LoadScene("Level2");
-                        break;
-                }
-            }
-            else
-            {
-                
-                Invoke(nameof(HideResourceText), messageShowTime);
-            }
-        }
-        else if (other.CompareTag("Resource"))
-        {
-            CollectResource(other.gameObject);
-        }
-    }
-
-    // Остальные методы остаются без изменений
     public void Move(InputAction.CallbackContext context)
     {
         horizontalMovement = context.ReadValue<Vector2>().x;
