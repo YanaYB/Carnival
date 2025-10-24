@@ -34,8 +34,6 @@ public class PlayerController : MonoBehaviour
     private float prevVelocityX = 0f;
     private bool canCheck = false; //For check if player is wallsliding
 
-    public float life = 10f; //Life of the player
-    public bool invincible = false; //If player can die
     private bool canMove = true; //If player can move
 
     private Animator animator;
@@ -316,26 +314,7 @@ public class PlayerController : MonoBehaviour
         transform.localScale = theScale;
     }
 
-    public void ApplyDamage(float damage, Vector3 position)
-    {
-        if (!invincible)
-        {
-            animator.SetBool("Hit", true);
-            life -= damage;
-            Vector2 damageDir = Vector3.Normalize(transform.position - position) * 40f;
-            m_Rigidbody2D.velocity = Vector2.zero;
-            m_Rigidbody2D.AddForce(damageDir * 10);
-            if (life <= 0)
-            {
-                StartCoroutine(WaitToDead());
-            }
-            else
-            {
-                StartCoroutine(Stun(0.25f));
-                StartCoroutine(MakeInvincible(1f));
-            }
-        }
-    }
+   
 
     IEnumerator DashCooldown()
     {
@@ -349,18 +328,7 @@ public class PlayerController : MonoBehaviour
         canDash = true;
     }
 
-    IEnumerator Stun(float time)
-    {
-        canMove = false;
-        yield return new WaitForSeconds(time);
-        canMove = true;
-    }
-    IEnumerator MakeInvincible(float time)
-    {
-        invincible = true;
-        yield return new WaitForSeconds(time);
-        invincible = false;
-    }
+   
     IEnumerator WaitToMove(float time)
     {
         canMove = false;
@@ -385,15 +353,5 @@ public class PlayerController : MonoBehaviour
         m_WallCheck.localPosition = new Vector3(Mathf.Abs(m_WallCheck.localPosition.x), m_WallCheck.localPosition.y, 0);
     }
 
-    IEnumerator WaitToDead()
-    {
-        animator.SetBool("IsDead", true);
-        canMove = false;
-        invincible = true;
-        GetComponent<Attack>().enabled = false;
-        yield return new WaitForSeconds(0.4f);
-        m_Rigidbody2D.velocity = new Vector2(0, m_Rigidbody2D.velocity.y);
-        yield return new WaitForSeconds(1.1f);
-        SceneManager.LoadSceneAsync(SceneManager.GetActiveScene().buildIndex);
-    }
+  
 }

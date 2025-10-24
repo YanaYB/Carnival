@@ -7,79 +7,78 @@ public class PlayerHealth : MonoBehaviour
 {
     public int maxHealth = 3;
     private int currentHealth;
+    public bool invincible = false;
+    private bool canMove = true;
     public static event Action OnPlayedDied;
 
     public HealthUI healthUI;
-    public GameObject gameOverScreen;
-    private Animator animator; // Добавляем аниматор
+    private Animator animator;
+    private Rigidbody2D rb;
+    private PlayerController playerController;
+    private Attack playerAttack;
 
     private void Start()
     {
         currentHealth = maxHealth;
+        animator = GetComponent<Animator>();
+        playerController = GetComponent<PlayerController>();
+        playerAttack = GetComponent<Attack>();
         healthUI.SetMaxHearts(maxHealth);
-        animator = GetComponent<Animator>(); // Получаем компонент Animator
+
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        Enemy enemy = collision.GetComponent<Enemy>();
-        if (enemy)
-        {
-            TakeDamage(enemy.damageToPlayer);
-        }
-        else if (collision.CompareTag("Death"))
-        {
-            Die();
-        }
-        else if (collision.CompareTag("Finish"))
-        {
-            string currentSceneName = SceneManager.GetActiveScene().name;
-
-            if (currentSceneName == "Level1")
-            {
-                SceneManager.LoadScene(2);
-            }
-            else if (currentSceneName == "Level2")
-            {
-                SceneManager.LoadScene(3);
-            }
-        }
+        
     }
 
     public void TakeDamage(int damage)
     {
         currentHealth -= damage;
         healthUI.UpdateHearts(currentHealth);
-        SoundEffectManager.Instance.PlayDamageSound();
+        
+       
 
         if (currentHealth <= 0)
         {
-            Die();
+            StartCoroutine(WaitToDead());
+        }
+        else
+        {
+            StartCoroutine(Stun(0.25f));
+            StartCoroutine(MakeInvincible(1f));
         }
     }
 
-    private void Die()
+
+    IEnumerator WaitToDead()
     {
-        SoundEffectManager.Instance.PlayGameOverSound();
-        if (animator != null)
-        {
-            animator.SetBool("isDead", true);
-        }
+        animator.SetBool("IsDead", true);
+        canMove = false;
+        invincible = true;
 
-        if (gameOverScreen != null)
-        {
-            gameOverScreen.SetActive(true);
-        }
+        if (playerController != null)
+            playerController.enabled = false;
+        if (playerAttack != null)
+            playerAttack.enabled = false;
 
-        OnPlayedDied?.Invoke();
+        yield return new WaitForSeconds(0.4f);
 
-        StartCoroutine(DisablePlayerAfterAnimation()); // Ждем анимацию перед отключением
+        yield return new WaitForSeconds(1.1f);
+        SceneManager.LoadScene(2);
     }
 
-    private IEnumerator DisablePlayerAfterAnimation()
+    IEnumerator Stun(float time)
     {
-        yield return new WaitForSeconds(1f); // Заменить на длину анимации смерти
-        gameObject.SetActive(false);
+        canMove = false;
+        yield return new WaitForSeconds(time);
+        canMove = true;
+    }
+    IEnumerator MakeInvincible(float time)
+    {
+        invincible = true;
+        yield return new WaitForSeconds(time);
+        invincible = false;
     }
 
 }

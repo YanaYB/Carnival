@@ -58,7 +58,14 @@ public class PlayerMovement : MonoBehaviour {
 		animator.SetBool("IsJumping", false);
 	}
 
-	void FixedUpdate ()
+    public void EndHitAnimation()
+    {
+        animator.SetBool("Hit", false);
+        Debug.Log("Log");
+    }
+
+
+    void FixedUpdate ()
 	{
 		// Move our character
 		controller.Move(horizontalMove * Time.fixedDeltaTime, jump, dash);
